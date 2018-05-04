@@ -5,7 +5,7 @@ use v5.14;
 # ABSTRACT: AnyEvent module for interacting with the Slack RTM API
 
 use AnyEvent;
-use AnyEvent::WebSocket::Client 0.12;
+use AnyEvent::WebSocket::Client 0.46;
 use Carp;
 use Furl;
 use JSON;
@@ -68,7 +68,7 @@ B<Disclaimer:> Note also that this API is subject to rate limits and any service
 
 =head2 new
 
-    method new($token)
+    method new($token, %options)
 
 Constructs a L<AnyEvent::SlackRTM> object and returns it.
 
@@ -86,17 +86,32 @@ L<Bot Token|https://slack.com/services/new/bot>. If you configure a bot integrat
 
 =back
 
+Supported C<options>:
+
+=over
+
+=item *
+
+C<env_proxy>.
+Passes the C<env_proxy> attribute to the L<AnyEvent::WebSocket::Client>
+as well as setting it on the L<Furl> client used internally if true.
+
+=back
+
 =cut
 
 sub new {
-    my ($class, $token) = @_;
+    my ($class, $token, %opt) = @_;
 
-    my $client = AnyEvent::WebSocket::Client->new;
+    my $client = AnyEvent::WebSocket::Client->new(
+        env_proxy => $opt{env_proxy},
+    );
 
     return bless {
-        token    => $token,
-        client   => $client,
-        registry => {},
+        token     => $token,
+        client    => $client,
+        env_proxy => $opt{env_proxy},
+        registry  => {},
     }, $class;
 }
 
@@ -119,6 +134,7 @@ sub start {
     my $furl = Furl->new(
         agent => "AnyEvent::SlackRTM/$VERSION",
     );
+    $furl->env_proxy if $self->{env_proxy};
 
     my $res = $furl->get($START_URL . '?token=' . $self->{token});
     my $start = try {
